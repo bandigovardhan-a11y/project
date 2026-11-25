@@ -1,0 +1,274 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillSwap Dashboard</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#f4f6fc;color:#202338}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:245px;background:#191b35;color:white;padding:22px 16px;flex-shrink:0}
+.brand{font-size:25px;font-weight:bold;padding:10px;margin-bottom:25px}
+.brand span{color:#aaa5ff}
+.nav a{display:block;color:white;text-decoration:none;padding:13px;margin:5px 0;border-radius:8px}
+.nav a:hover,.nav a.active{background:#41436c}
+.logout{color:#ffb9c2!important}
+.main{flex:1;padding:30px;min-width:0}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+.topbar h1{margin:0 0 8px}
+.avatar{width:45px;height:45px;background:#e5e3ff;color:#5148e5;border-radius:50%;display:grid;place-items:center;font-weight:bold}
+.welcome{background:linear-gradient(110deg,#5148e5,#7770f0);color:white;padding:28px;border-radius:15px;margin-bottom:25px}
+.welcome h2{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:18px}
+.tile{background:white;padding:22px;border-radius:13px;text-decoration:none;color:#202338;box-shadow:0 5px 20px #00000010;transition:.2s}
+.tile:hover{transform:translateY(-3px)}
+.tile-icon{font-size:28px;margin-bottom:12px}
+.tile h3{margin:5px 0}
+.tile p{color:#687087;font-size:13px;line-height:1.5}
+.panel{background:white;padding:22px;border-radius:13px;margin-top:25px;box-shadow:0 5px 20px #00000010}
+button{background:#5148e5;color:white;border:0;padding:11px 16px;border-radius:7px;cursor:pointer}
+button:hover{opacity:.85}
+button:disabled{opacity:.5;cursor:wait}
+button.secondary{background:#ecebff;color:#3930b8}
+button.danger{background:#fff0f1;color:#d9364f}
+input[type=file]{padding:10px;max-width:100%}
+.doc{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-top:1px solid #eee}
+.doc-name{font-weight:bold;overflow-wrap:anywhere}
+.doc-actions{display:flex;gap:6px;flex-wrap:wrap}
+.doc-actions button{font-size:12px;padding:8px}
+.muted{color:#687087;font-size:14px}
+#notice{margin-top:12px;font-size:14px;min-height:18px}
+footer{text-align:center;padding:25px;color:#687087}
+@media(max-width:760px){
+.layout{display:block}.sidebar{width:100%}
+.nav{display:flex;overflow-x:auto}.nav a{white-space:nowrap;font-size:12px}
+.main{padding:18px}.doc{align-items:flex-start;flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+    <div class="brand">Skill<span>Swap</span> 🤝</div>
+    <nav class="nav">
+        <a class="active" href="/dashboard">🏠 Dashboard</a>
+        <a href="/myskills">📚 My Skills</a>
+        <a href="/profile">👤 My Profile</a>
+        <a href="/findskills">🔎 Find Skills</a>
+        <a href="/sessions">📅 My Sessions</a>
+        <a href="/skillmatches">🤝 Skill Matches</a>
+        <a href="/messages">💬 Messages</a>
+        <a href="/settings">⚙️ Settings</a>
+        <a href="#" class="logout" id="logoutLink">🚪 Logout</a>
+    </nav>
+</aside>
+
+<main class="main">
+    <div class="topbar">
+        <div>
+            <h1>Student Dashboard</h1>
+            <p class="muted">Learn something new. Share what you know.</p>
+        </div>
+        <div class="avatar" id="avatar">S</div>
+    </div>
+
+    <section class="welcome">
+        <h2 id="welcomeTitle">Welcome to SkillSwap!</h2>
+        <p>Connect with students, exchange knowledge, and grow your skills together.</p>
+    </section>
+
+    <h2>Your Workspace</h2>
+    <section class="grid">
+        <a class="tile" href="/myskills"><div class="tile-icon">📚</div><h3>My Skills</h3><p>Add and manage your teaching and learning skills.</p></a>
+        <a class="tile" href="/profile"><div class="tile-icon">👤</div><h3>My Profile</h3><p>View and update your student information.</p></a>
+        <a class="tile" href="/findskills"><div class="tile-icon">🔎</div><h3>Find Skills</h3><p>Search for students and their skills.</p></a>
+        <a class="tile" href="/sessions"><div class="tile-icon">📅</div><h3>My Sessions</h3><p>Schedule and manage learning sessions.</p></a>
+        <a class="tile" href="/skillmatches"><div class="tile-icon">🤝</div><h3>Skill Matches</h3><p>Find students with matching skills.</p></a>
+        <a class="tile" href="/messages"><div class="tile-icon">💬</div><h3>Messages</h3><p>Communicate with other students.</p></a>
+        <a class="tile" href="/settings"><div class="tile-icon">⚙️</div><h3>Settings</h3><p>Manage password and preferences.</p></a>
+    </section>
+
+    <section class="panel">
+        <h2>📄 PDF Upload and Management</h2>
+        <p class="muted">Upload your study notes and learning resources. Maximum PDF size: 10 MB.</p>
+
+        <form id="uploadForm">
+            <input type="file" id="pdfFile" accept=".pdf,application/pdf" required>
+            <button type="submit" id="uploadButton">Upload PDF</button>
+        </form>
+
+        <div id="notice" role="status"></div>
+        <div id="documentList">Loading PDFs...</div>
+    </section>
+
+    <footer>SkillSwap Student Skill Exchange Platform</footer>
+</main>
+</div>
+
+<script>
+async function api(url, options = {}){
+    const response = await fetch(url, options);
+    const data = await response.json();
+
+    if(response.status === 401){
+        window.location.href = "/login";
+        throw new Error("Please login.");
+    }
+
+    if(!response.ok){
+        throw new Error(data.message || "Request failed.");
+    }
+
+    return data;
+}
+
+async function loadWelcome(){
+    try{
+        const user = await api("/api/me");
+        const name = user.name || "Student";
+        document.getElementById("welcomeTitle").textContent = "Welcome, " + name + "!";
+        document.getElementById("avatar").textContent = name.charAt(0).toUpperCase();
+    }catch(error){
+        console.error(error);
+    }
+}
+
+async function loadDocuments(){
+    const list = document.getElementById("documentList");
+    list.textContent = "Loading PDFs...";
+
+    try{
+        const docs = await api("/api/documents");
+        list.innerHTML = "";
+
+        if(!Array.isArray(docs) || docs.length === 0){
+            list.textContent = "No PDFs uploaded yet.";
+            return;
+        }
+
+        docs.forEach(doc => {
+            const row = document.createElement("div");
+            row.className = "doc";
+
+            const name = document.createElement("div");
+            name.className = "doc-name";
+            name.textContent = doc.original_name;
+
+            const actions = document.createElement("div");
+            actions.className = "doc-actions";
+
+            const view = document.createElement("button");
+            view.className = "secondary";
+            view.textContent = "View";
+            view.addEventListener("click", () => {
+                window.open("/api/documents/" + doc.id + "/view", "_blank", "noopener");
+            });
+
+            const download = document.createElement("button");
+            download.className = "secondary";
+            download.textContent = "Download";
+            download.addEventListener("click", () => {
+                window.location.href = "/api/documents/" + doc.id + "/download";
+            });
+
+            const rename = document.createElement("button");
+            rename.className = "secondary";
+            rename.textContent = "Rename";
+            rename.addEventListener("click", async () => {
+                const newName = prompt("Enter new PDF name:", doc.original_name);
+                if(!newName || !newName.trim()) return;
+
+                try{
+                    await api("/api/documents/" + doc.id, {
+                        method: "PATCH",
+                        headers: {"Content-Type":"application/json"},
+                        body: JSON.stringify({original_name:newName.trim()})
+                    });
+                    await loadDocuments();
+                }catch(error){
+                    alert(error.message);
+                }
+            });
+
+            const remove = document.createElement("button");
+            remove.className = "danger";
+            remove.textContent = "Delete";
+            remove.addEventListener("click", async () => {
+                if(!confirm("Delete this PDF?")) return;
+                try{
+                    await api("/api/documents?id=" + doc.id, {method:"DELETE"});
+                    await loadDocuments();
+                }catch(error){
+                    alert(error.message);
+                }
+            });
+
+            actions.append(view, download, rename, remove);
+            row.append(name, actions);
+            list.appendChild(row);
+        });
+    }catch(error){
+        list.textContent = error.message;
+    }
+}
+
+document.getElementById("uploadForm").addEventListener("submit", async function(event){
+    event.preventDefault();
+
+    const file = document.getElementById("pdfFile").files[0];
+    const notice = document.getElementById("notice");
+    const button = document.getElementById("uploadButton");
+
+    if(!file) return;
+
+    if(file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")){
+        notice.textContent = "Please select a PDF file.";
+        return;
+    }
+
+    if(file.size > 10* 1024 * 1024){
+        notice.textContent = "PDF must be 10MB or smaller.";
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("pdf", file);
+
+    button.disabled = true;
+    notice.textContent = "Uploading PDF...";
+
+    try{
+        const result = await api("/api/documents", {
+            method:"POST",
+            body:formData
+        });
+
+        notice.textContent = result.message || "PDF uploaded.";
+        this.reset();
+        await loadDocuments();
+    }catch(error){
+        notice.textContent = error.message;
+    }finally{
+        button.disabled = false;
+    }
+});
+
+document.getElementById("logoutLink").addEventListener("click", async function(event){
+    event.preventDefault();
+    if(!confirm("Are you sure you want to logout?")) return;
+
+    try{
+        await fetch("/api/logout", {method:"POST"});
+        window.location.href = "/";
+    }catch(error){
+        alert("Logout failed. Please try again.");
+    }
+});
+
+loadWelcome();
+loadDocuments();
+</script>
+</body>
+</html>

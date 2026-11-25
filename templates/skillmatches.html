@@ -1,0 +1,116 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Matches | SkillSwap</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#f4f6fb;color:#222}
+header{background:#4f46e5;color:white;padding:20px;text-align:center}
+.container{max-width:1000px;margin:30px auto;padding:15px}
+h2{color:#333}
+.match-card{background:white;padding:20px;margin:15px 0;border-radius:12px;box-shadow:0 3px 12px #00000012}
+.match-card h3{color:#4f46e5;margin-top:0}
+.skill{display:inline-block;background:#e8e7ff;color:#3730a3;padding:7px 12px;margin:5px;border-radius:20px;font-size:13px}
+.empty{background:white;padding:25px;border-radius:10px;text-align:center}
+.back{display:inline-block;margin-top:15px;color:#4f46e5;text-decoration:none}
+.section-label{display:block;margin-top:15px;font-weight:bold}
+button{background:#4f46e5;color:white;border:0;padding:10px 15px;border-radius:7px;cursor:pointer;margin-top:15px}
+</style>
+</head>
+<body>
+<header>
+    <h1>🤝 Skill Matches</h1>
+    <p>Find students who can teach you and learn from you</p>
+</header>
+
+<div class="container">
+    <h2>Your Skill Matches</h2>
+    <p>Students with matching teaching and learning skills.</p>
+    <div id="results">Loading matches...</div>
+    <a class="back" href="/dashboard">← Back to Dashboard</a>
+</div>
+
+<script>
+async function loadMatches(){
+    const results = document.getElementById("results");
+    results.textContent = "Loading matches...";
+
+    try{
+        const response = await fetch("/api/skill-matches");
+        const data = await response.json();
+
+        if(response.status===401){location.href="/login";return;}
+        if(!response.ok) throw new Error(data.message || "Unable to load matches.");
+
+        if(!Array.isArray(data) || data.length===0){
+            results.innerHTML = "";
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.textContent = "No skill matches found yet. Update your skills or invite more students to join!";
+            results.appendChild(empty);
+            return;
+        }
+
+        results.innerHTML = "";
+
+        data.forEach(student=>{
+            const card = document.createElement("div");
+            card.className = "match-card";
+
+            const name = document.createElement("h3");
+            name.textContent = "👤 " + student.name;
+
+            const college = document.createElement("p");
+            college.textContent = "College: " + (student.college || "Not provided");
+
+            const teachHeading = document.createElement("strong");
+            teachHeading.className = "section-label";
+            teachHeading.textContent = "They can teach you:";
+
+            const teachSkills = document.createElement("div");
+            (student.they_can_teach || []).forEach(skill=>{
+                const tag = document.createElement("span");
+                tag.className = "skill";
+                tag.textContent = skill;
+                teachSkills.appendChild(tag);
+            });
+
+            const learnHeading = document.createElement("strong");
+            learnHeading.className = "section-label";
+            learnHeading.textContent = "They want to learn from you:";
+
+            const learnSkills = document.createElement("div");
+            (student.they_want_to_learn || []).forEach(skill=>{
+                const tag = document.createElement("span");
+                tag.className = "skill";
+                tag.textContent = skill;
+                learnSkills.appendChild(tag);
+            });
+
+            const contact = document.createElement("button");
+            contact.type = "button";
+            contact.textContent = "Send Message";
+            contact.addEventListener("click",()=>{
+                location.href = "/messages?email=" + encodeURIComponent(student.email || "");
+            });
+
+            card.append(
+                name,college,teachHeading,teachSkills,
+                learnHeading,learnSkills,contact
+            );
+
+            results.appendChild(card);
+        });
+
+    }catch(error){
+        results.textContent = error.message;
+    }
+}
+
+loadMatches();
+</script>
+</body>
+</html>

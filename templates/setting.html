@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings | SkillSwap</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#f4f6fb;color:#222;transition:.2s}
+header{background:#4f46e5;color:white;padding:22px;text-align:center}
+.container{max-width:750px;margin:30px auto;padding:15px}
+.card{background:white;padding:22px;margin-bottom:20px;border-radius:12px;box-shadow:0 3px 12px #00000012}
+h2{color:#4f46e5;margin-top:0}
+label{display:block;margin-top:12px;font-weight:bold}
+input{width:100%;padding:12px;margin-top:7px;border:1px solid #ccc;border-radius:7px}
+button{background:#4f46e5;color:white;border:0;padding:12px 18px;margin-top:15px;border-radius:7px;cursor:pointer}
+button:hover{opacity:.85}
+button:disabled{opacity:.5;cursor:wait}
+.logout{background:#dc3545}
+.theme-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#message{margin-top:12px;font-weight:bold;min-height:20px}
+.back{color:#4f46e5;text-decoration:none}
+body.dark{background:#171923;color:#f4f4f4}
+body.dark .card{background:#252a3a;color:#f4f4f4}
+body.dark input{background:#171923;color:white;border-color:#555}
+body.dark h2{color:#a5a0ff}
+body.dark .back{color:#aaa5ff}
+</style>
+</head>
+<body>
+<header>
+    <h1>⚙️ SkillSwap Settings</h1>
+    <p>Manage your account and preferences</p>
+</header>
+
+<div class="container">
+    <div class="card">
+        <h2>🎨 Appearance</h2>
+        <div class="theme-row">
+            <div>
+                <strong>Dark Mode</strong>
+                <p>Change the appearance of this page.</p>
+            </div>
+            <button type="button" id="themeButton">Enable Dark Mode</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🔐 Change Password</h2>
+        <form id="passwordForm">
+            <label for="currentPassword">Current Password</label>
+            <input type="password" id="currentPassword" autocomplete="current-password" required>
+
+            <label for="newPassword">New Password</label>
+            <input type="password" id="newPassword" minlength="8" autocomplete="new-password" required>
+
+            <label for="confirmPassword">Confirm New Password</label>
+            <input type="password" id="confirmPassword" minlength="8" autocomplete="new-password" required>
+
+            <button type="submit" id="updateButton">Update Password</button>
+        </form>
+        <div id="message" role="status"></div>
+    </div>
+
+    <div class="card">
+        <h2>🚪 Account</h2>
+        <p>Log out of your SkillSwap account on this device.</p>
+        <button class="logout" type="button" id="logoutButton">Logout</button>
+    </div>
+
+    <a class="back" href="/dashboard">← Back to Dashboard</a>
+</div>
+
+<script>
+const body = document.body;
+const themeButton = document.getElementById("themeButton");
+
+function applyTheme(){
+    const dark = localStorage.getItem("skillswapTheme")==="dark";
+    body.classList.toggle("dark",dark);
+    themeButton.textContent = dark ? "Disable Dark Mode" : "Enable Dark Mode";
+}
+
+function toggleTheme(){
+    const dark = !body.classList.contains("dark");
+    localStorage.setItem("skillswapTheme",dark ? "dark" : "light");
+    applyTheme();
+}
+
+themeButton.addEventListener("click",toggleTheme);
+applyTheme();
+
+document.getElementById("passwordForm").addEventListener("submit",async function(event){
+    event.preventDefault();
+
+    const current = document.getElementById("currentPassword").value;
+    const newPassword = document.getElementById("newPassword").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
+    const message = document.getElementById("message");
+    const button = document.getElementById("updateButton");
+
+    if(newPassword.length<8){
+        message.textContent = "New password must have at least 8 characters.";
+        return;
+    }
+
+    if(newPassword!==confirmPassword){
+        message.textContent = "New passwords do not match.";
+        return;
+    }
+
+    button.disabled = true;
+
+    try{
+        const response = await fetch("/api/change-password",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                current_password:current,
+                new_password:newPassword
+            })
+        });
+
+        const data = await response.json();
+
+        if(response.status===401){
+            location.href="/login";
+            return;
+        }
+
+        if(!response.ok) throw new Error(data.message || "Password update failed.");
+
+        message.style.color = "green";
+        message.textContent = data.message || "Password changed successfully.";
+        this.reset();
+    }catch(error){
+        message.style.color = "red";
+        message.textContent = error.message;
+    }finally{
+        button.disabled = false;
+    }
+});
+
+document.getElementById("logoutButton").addEventListener("click",async()=>{
+    if(!confirm("Are you sure you want to logout?")) return;
+
+    try{
+        const response = await fetch("/api/logout",{method:"POST"});
+        if(!response.ok) throw new Error("Logout failed.");
+        location.href="/";
+    }catch(error){
+        alert(error.message);
+    }
+});
+</script>
+</body>
+</html>

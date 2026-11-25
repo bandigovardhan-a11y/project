@@ -1,0 +1,137 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Swap Login</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{min-height:100vh;display:flex;justify-content:center;align-items:center;background:linear-gradient(135deg,#667eea,#764ba2);padding:20px}
+.container{width:90%;max-width:420px}
+.logo{text-align:center;color:white;margin-bottom:25px}
+.logo h1{font-size:38px}.logo span{color:#ffdc73}
+.logo p{margin-top:8px}
+.login-box{background:white;padding:35px;border-radius:15px;box-shadow:0 10px 30px #0003}
+.login-box h2{text-align:center;color:#333;margin-bottom:10px}
+.subtitle{text-align:center;color:#777;margin-bottom:25px}
+.input-group{margin-bottom:20px}
+.input-group label{display:block;margin-bottom:8px;font-weight:bold;color:#333}
+.input-group input{width:100%;padding:13px;border:1px solid #ccc;border-radius:7px;outline:none}
+.input-group input:focus{border-color:#667eea}
+.password-box{position:relative}
+.password-box input{padding-right:60px}
+.password-box span{position:absolute;right:12px;top:13px;color:#667eea;cursor:pointer;font-size:13px}
+.options{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;margin-bottom:22px}
+.options a,.register a{color:#667eea;text-decoration:none}
+button{width:100%;padding:13px;border:0;border-radius:7px;background:#667eea;color:white;font-size:16px;font-weight:bold;cursor:pointer}
+button:hover{background:#5265d5}
+button:disabled{opacity:.6;cursor:wait}
+#message{text-align:center;margin-top:15px;font-size:14px;min-height:18px}
+.register{text-align:center;margin-top:25px;font-size:13px;color:#555}
+footer{text-align:center;color:white;margin-top:25px;font-size:12px}
+@media(max-width:480px){.login-box{padding:25px 20px}}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="logo">
+        <h1>Skill<span>Swap</span></h1>
+        <p>Learn Together. Grow Together.</p>
+    </div>
+
+    <div class="login-box">
+        <h2>Welcome Back!</h2>
+        <p class="subtitle">Login to exchange your skills</p>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" autocomplete="username"
+                       placeholder="Enter your email" required>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password</label>
+                <div class="password-box">
+                    <input type="password" id="password"
+                           autocomplete="current-password"
+                           placeholder="Enter password" required>
+                    <span id="togglePassword">Show</span>
+                </div>
+            </div>
+
+            <div class="options">
+                <label><input type="checkbox" id="remember"> Remember me</label>
+                <a href="/forgot">Forgot Password?</a>
+            </div>
+
+            <button type="submit" id="loginButton">Login</button>
+            <p id="message" role="status"></p>
+        </form>
+
+        <div class="register">
+            Don't have an account?
+            <a href="/register">Register Now</a>
+        </div>
+    </div>
+
+    <footer>© 2026 SkillSwap. All Rights Reserved.</footer>
+</div>
+
+<script>
+const loginForm = document.getElementById("loginForm");
+const passwordInput = document.getElementById("password");
+const messageBox = document.getElementById("message");
+const loginButton = document.getElementById("loginButton");
+
+document.getElementById("togglePassword").addEventListener("click", function(){
+    const showing = passwordInput.type === "password";
+    passwordInput.type = showing ? "text" : "password";
+    this.textContent = showing ? "Hide" : "Show";
+});
+
+loginForm.addEventListener("submit", async function(event){
+    event.preventDefault();
+
+    const email = document.getElementById("email").value.trim();
+    const password = passwordInput.value;
+
+    if(!email || !password){
+        messageBox.style.color = "red";
+        messageBox.textContent = "Please fill all fields.";
+        return;
+    }
+
+    loginButton.disabled = true;
+    messageBox.style.color = "#555";
+    messageBox.textContent = "Checking login details...";
+
+    try{
+        const response = await fetch("/api/login", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({email, password})
+        });
+
+        const data = await response.json();
+
+        if(!response.ok){
+            throw new Error(data.message || "Invalid email or password.");
+        }
+
+        messageBox.style.color = "green";
+        messageBox.textContent = "Login successful. Opening dashboard...";
+
+        window.location.href = data.redirect || "/dashboard";
+
+    }catch(error){
+        messageBox.style.color = "red";
+        messageBox.textContent = error.message;
+    }finally{
+        loginButton.disabled = false;
+    }
+});
+</script>
+</body>
+</html>

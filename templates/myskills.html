@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillSwap - My Skills</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f1f5f9;display:flex}
+.sidebar{width:230px;height:100vh;background:#172554;color:white;padding:25px 15px;position:fixed}
+.sidebar h2{color:#60a5fa;margin-bottom:30px}
+.sidebar a{display:block;color:white;text-decoration:none;padding:14px;margin:8px 0;border-radius:8px}
+.sidebar a:hover,.sidebar a.active{background:#2563eb}
+.main{margin-left:230px;padding:35px;width:calc(100% - 230px)}
+.header{display:flex;justify-content:space-between;margin-bottom:25px;gap:10px}
+.header h1{color:#172554}
+.welcome{background:linear-gradient(120deg,#2563eb,#7c3aed);color:white;padding:25px;border-radius:12px;margin-bottom:25px}
+.container{display:grid;grid-template-columns:1fr 1fr;gap:25px}
+.card{background:white;padding:25px;border-radius:12px;box-shadow:0 3px 12px #ddd}
+.card h2{color:#1e40af;margin-bottom:15px}
+input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:7px;margin:12px 0}
+button{background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:7px;cursor:pointer}
+button:hover{background:#1d4ed8}
+.skill-list{margin-top:20px}
+.skill{display:inline-flex;align-items:center;gap:8px;background:#dbeafe;color:#1d4ed8;padding:9px 12px;margin:5px;border-radius:20px}
+.skill button{background:transparent;color:#1d4ed8;padding:0;font-weight:bold}
+#message{margin-top:20px;font-weight:bold;min-height:20px}
+@media(max-width:750px){
+.sidebar{width:150px}
+.main{margin-left:150px;width:calc(100% - 150px);padding:15px}
+.container{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>SkillSwap</h2>
+    <a href="/dashboard">🏠 Dashboard</a>
+    <a href="/profile">👤 My Profile</a>
+    <a href="/myskills" class="active">📚 My Skills</a>
+    <a href="/findskills">🔍 Find Skills</a>
+    <a href="/skillmatches">🤝 Skill Matches</a>
+    <a href="/sessions">📅 My Sessions</a>
+    <a href="/messages">💬 Messages</a>
+    <a href="/settings">⚙️ Settings</a>
+</div>
+
+<div class="main">
+    <div class="header">
+        <h1>My Skills 📚</h1>
+        <span>Student Skill Exchange</span>
+    </div>
+
+    <div class="welcome">
+        <h2>Manage Your Skills!</h2>
+        <p>Add the skills you can teach and the skills you want to learn.</p>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>🎓 Skills I Can Teach</h2>
+            <input type="text" id="teachInput" placeholder="Example: HTML, Java, Python">
+            <button type="button" id="addTeach">Add Teaching Skill</button>
+            <div class="skill-list" id="teachList"></div>
+        </div>
+
+        <div class="card">
+            <h2>📖 Skills I Want to Learn</h2>
+            <input type="text" id="learnInput" placeholder="Example: React, Photoshop">
+            <button type="button" id="addLearn">Add Learning Skill</button>
+            <div class="skill-list" id="learnList"></div>
+        </div>
+    </div>
+
+    <button style="margin-top:25px" id="saveSkills">Save My Skills</button>
+    <p id="message" role="status"></p>
+</div>
+
+<script>
+let teachSkills = [];
+let learnSkills = [];
+
+const el = id => document.getElementById(id);
+
+function displaySkills(type){
+    const skills = type==="teach" ? teachSkills : learnSkills;
+    const list = el(type==="teach" ? "teachList" : "learnList");
+    list.innerHTML = "";
+
+    skills.forEach((skill,index)=>{
+        const tag = document.createElement("span");
+        tag.className = "skill";
+
+        const text = document.createElement("span");
+        text.textContent = skill;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.title = "Remove " + skill;
+        remove.addEventListener("click",()=>{
+            skills.splice(index,1);
+            displaySkills(type);
+        });
+
+        tag.append(text,remove);
+        list.appendChild(tag);
+    });
+}
+
+function addSkill(type){
+    const input = el(type==="teach" ? "teachInput" : "learnInput");
+    const skills = type==="teach" ? teachSkills : learnSkills;
+    const value = input.value.trim();
+
+    if(!value){
+        el("message").textContent = "Please enter a skill.";
+        return;
+    }
+
+    value.split(",").map(s=>s.trim()).filter(Boolean).forEach(skill=>{
+        if(!skills.some(s=>s.toLowerCase()===skill.toLowerCase())){
+            skills.push(skill);
+        }
+    });
+
+    input.value = "";
+    displaySkills(type);
+    el("message").textContent = "";
+}
+
+el("addTeach").addEventListener("click",()=>addSkill("teach"));
+el("addLearn").addEventListener("click",()=>addSkill("learn"));
+
+async function loadSkills(){
+    try{
+        const response = await fetch("/api/skills");
+        const data = await response.json();
+
+        if(response.status===401){location.href="/login";return;}
+        if(!response.ok) throw new Error(data.message || "Unable to load skills.");
+
+        teachSkills = (data.teach_skill || "").split(",").map(s=>s.trim()).filter(Boolean);
+        learnSkills = (data.learn_skill || "").split(",").map(s=>s.trim()).filter(Boolean);
+
+        displaySkills("teach");
+        displaySkills("learn");
+    }catch(error){
+        el("message").textContent = error.message;
+    }
+}
+
+async function saveSkills(){
+    const button = el("saveSkills");
+    button.disabled = true;
+
+    try{
+        const response = await fetch("/api/skills",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                teach_skill:teachSkills.join(", "),
+                learn_skill:learnSkills.join(", ")
+            })
+        });
+
+        const data = await response.json();
+        if(!response.ok) throw new Error(data.message || "Could not save skills.");
+
+        el("message").style.color = "green";
+        el("message").textContent = data.message || "Skills saved successfully!";
+    }catch(error){
+        el("message").style.color = "red";
+        el("message").textContent = error.message;
+    }finally{
+        button.disabled = false;
+    }
+}
+
+el("saveSkills").addEventListener("click",saveSkills);
+loadSkills();
+</script>
+</body>
+</html>

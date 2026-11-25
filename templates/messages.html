@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages | SkillSwap</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#f3f5fb;color:#222}
+header{background:#4f46e5;color:white;padding:20px;text-align:center}
+.container{max-width:850px;margin:25px auto;padding:15px}
+.chat-box{background:white;border-radius:12px;padding:20px;box-shadow:0 3px 12px #00000012}
+input,textarea{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:7px}
+button{background:#4f46e5;color:white;border:0;padding:12px 18px;border-radius:7px;cursor:pointer;margin:5px 0}
+button:hover{opacity:.85}
+button:disabled{opacity:.5;cursor:wait}
+#chatMessages{height:380px;overflow-y:auto;background:#f7f8fc;padding:15px;border-radius:10px;margin:15px 0}
+.message{padding:12px;margin:10px 0;border-radius:10px;max-width:75%;overflow-wrap:anywhere}
+.sent{background:#dfe2ff;margin-left:auto}
+.received{background:#e5f5e9;margin-right:auto}
+.message small{display:block;margin-top:7px;color:#666;font-size:11px}
+.status{margin:10px 0;color:#333;min-height:20px}
+.back{display:inline-block;margin-top:20px;color:#4f46e5;text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+    <h1>💬 SkillSwap Messages</h1>
+    <p>Communicate with your skill-exchange partners</p>
+</header>
+
+<div class="container">
+<div class="chat-box">
+    <h2>Start a Conversation</h2>
+
+    <label for="partnerEmail">Student Email</label>
+    <input type="email" id="partnerEmail" placeholder="Enter registered student email">
+
+    <button type="button" id="openChat">Open Chat</button>
+    <button type="button" id="refreshChat">Refresh</button>
+
+    <p id="status" class="status" role="status"></p>
+
+    <div id="chatMessages">Select a student to view messages.</div>
+
+    <form id="messageForm">
+        <label for="messageText">Your Message</label>
+        <textarea id="messageText" rows="3" placeholder="Type your message..." maxlength="2000" required></textarea>
+        <button type="submit" id="sendButton">Send Message ➤</button>
+    </form>
+</div>
+
+<a class="back" href="/dashboard">← Back to Dashboard</a>
+</div>
+
+<script>
+let currentEmail = "";
+
+const chat = document.getElementById("chatMessages");
+const statusBox = document.getElementById("status");
+const partnerInput = document.getElementById("partnerEmail");
+
+async function api(url,options={}){
+    const response = await fetch(url,options);
+    const data = await response.json();
+
+    if(response.status===401){
+        location.href="/login";
+        throw new Error("Please login.");
+    }
+    if(!response.ok) throw new Error(data.message || "Request failed.");
+    return data;
+}
+
+async function loadMessages(){
+    const email = partnerInput.value.trim();
+
+    if(!email){
+        statusBox.textContent = "Please enter a student email.";
+        return;
+    }
+
+    currentEmail = email;
+    await refreshMessages();
+}
+
+async function refreshMessages(){
+    if(!currentEmail){
+        statusBox.textContent = "Enter a student email first.";
+        return;
+    }
+
+    statusBox.textContent = "Loading conversation...";
+
+    try{
+        const data = await api("/api/messages?email="+encodeURIComponent(currentEmail));
+        chat.innerHTML = "";
+
+        if(!Array.isArray(data) || data.length===0){
+            chat.textContent = "No messages yet. Start chatting!";
+            statusBox.textContent = "Conversation opened.";
+            return;
+        }
+
+        data.forEach(item=>{
+            const box = document.createElement("div");
+            box.className = "message " + (item.is_mine ? "sent" : "received");
+
+            const text = document.createElement("div");
+            text.textContent = item.message;
+
+            const time = document.createElement("small");
+            const date = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+            time.textContent = (item.is_mine ? "You" : item.sender_name) + " • " + date;
+
+            box.append(text,time);
+            chat.appendChild(box);
+        });
+
+        chat.scrollTop = chat.scrollHeight;
+        statusBox.textContent = "Conversation loaded.";
+    }catch(error){
+        statusBox.textContent = error.message;
+    }
+}
+
+document.getElementById("openChat").addEventListener("click",loadMessages);
+document.getElementById("refreshChat").addEventListener("click",refreshMessages);
+
+document.getElementById("messageForm").addEventListener("submit",async event=>{
+    event.preventDefault();
+
+    if(!currentEmail){
+        statusBox.textContent = "Open a conversation before sending a message.";
+        return;
+    }
+
+    const text = document.getElementById("messageText").value.trim();
+    if(!text) return;
+
+    const button = document.getElementById("sendButton");
+    button.disabled = true;
+
+    try{
+        const result = await api("/api/messages",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                email:currentEmail,
+                message:text
+            })
+        });
+
+        statusBox.textContent = result.message || "Message sent.";
+        document.getElementById("messageText").value = "";
+        await refreshMessages();
+    }catch(error){
+        statusBox.textContent = error.message;
+    }finally{
+        button.disabled = false;
+    }
+});
+
+const queryEmail = new URLSearchParams(location.search).get("email");
+if(queryEmail){
+    partnerInput.value = queryEmail;
+    loadMessages();
+}
+</script>
+</body>
+</html>

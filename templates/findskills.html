@@ -1,0 +1,141 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillSwap - Find Skills</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f1f5f9}
+.sidebar{width:230px;min-height:100vh;background:#172554;color:white;padding:25px 15px;position:fixed}
+.sidebar h2{color:#60a5fa;margin-bottom:30px}
+.sidebar a{display:block;color:white;text-decoration:none;padding:14px;margin:8px 0;border-radius:8px}
+.sidebar a:hover,.sidebar a.active{background:#2563eb}
+.main{margin-left:230px;padding:35px}
+.header{margin-bottom:25px;color:#172554}
+.banner{background:linear-gradient(120deg,#2563eb,#7c3aed);color:white;padding:25px;border-radius:12px;margin-bottom:25px}
+.search-box{background:white;padding:25px;border-radius:12px;margin-bottom:25px}
+.search-box input{width:75%;padding:13px;border:1px solid #cbd5e1;border-radius:7px}
+button{background:#2563eb;color:white;border:0;padding:13px 20px;border-radius:7px;cursor:pointer;margin:5px}
+button:hover{background:#1d4ed8}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px}
+.student-card{background:white;padding:22px;border-radius:12px;box-shadow:0 3px 10px #ddd}
+.student-card h3{color:#1e40af;margin-bottom:12px}
+.student-card p{margin:10px 0;color:#475569;overflow-wrap:anywhere}
+#message{margin:15px 0;color:#475569}
+@media(max-width:750px){
+.sidebar{width:150px}
+.main{margin-left:150px;padding:15px}
+.search-box input{width:100%;margin-bottom:10px}
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>SkillSwap</h2>
+    <a href="/dashboard">🏠 Dashboard</a>
+    <a href="/profile">👤 My Profile</a>
+    <a href="/myskills">📚 My Skills</a>
+    <a href="/findskills" class="active">🔍 Find Skills</a>
+    <a href="/skillmatches">🤝 Skill Matches</a>
+    <a href="/sessions">📅 My Sessions</a>
+    <a href="/messages">💬 Messages</a>
+    <a href="/settings">⚙️ Settings</a>
+</div>
+
+<div class="main">
+    <div class="header"><h1>🔍 Find Skills</h1></div>
+
+    <div class="banner">
+        <h2>Discover New Skills!</h2>
+        <p>Search for students who can teach the skills you want to learn.</p>
+    </div>
+
+    <div class="search-box">
+        <h2>Search Your Favourite Skill</h2>
+        <br>
+        <input type="text" id="searchInput" placeholder="Enter skill name...">
+        <button type="button" id="searchButton">Search</button>
+        <button type="button" id="showAllButton">Show All</button>
+        <p id="message" role="status"></p>
+    </div>
+
+    <h2 style="margin-bottom:20px">Available Students</h2>
+    <div class="results" id="results"></div>
+</div>
+
+<script>
+const results = document.getElementById("results");
+const message = document.getElementById("message");
+const searchInput = document.getElementById("searchInput");
+
+async function loadStudents(skill=""){
+    results.innerHTML = "";
+    message.textContent = "Searching...";
+
+    try{
+        const response = await fetch("/api/find-skills?skill=" + encodeURIComponent(skill));
+        const data = await response.json();
+
+        if(response.status===401){location.href="/login";return;}
+        if(!response.ok) throw new Error(data.message || "Unable to search.");
+
+        if(!Array.isArray(data) || data.length===0){
+            message.textContent = "No students found for this skill.";
+            return;
+        }
+
+        message.textContent = data.length + " student(s) found.";
+
+        data.forEach(student=>{
+            const card = document.createElement("div");
+            card.className = "student-card";
+
+            const name = document.createElement("h3");
+            name.textContent = "👤 " + student.name;
+
+            const teach = document.createElement("p");
+            teach.textContent = "🎓 Can Teach: " + (student.teach_skill || "Not provided");
+
+            const learn = document.createElement("p");
+            learn.textContent = "📖 Wants to Learn: " + (student.learn_skill || "Not provided");
+
+            const college = document.createElement("p");
+            college.textContent = "🏫 College: " + (student.college || "Not provided");
+
+            const messageLink = document.createElement("button");
+            messageLink.type = "button";
+            messageLink.textContent = "Message Student";
+            messageLink.addEventListener("click",()=>{
+                location.href = "/messages?email=" + encodeURIComponent(student.email);
+            });
+
+            card.append(name,teach,learn,college,messageLink);
+            results.appendChild(card);
+        });
+    }catch(error){
+        message.textContent = error.message;
+    }
+}
+
+document.getElementById("searchButton").addEventListener("click",()=>{
+    loadStudents(searchInput.value.trim());
+});
+
+document.getElementById("showAllButton").addEventListener("click",()=>{
+    searchInput.value = "";
+    loadStudents("");
+});
+
+searchInput.addEventListener("keydown",event=>{
+    if(event.key==="Enter") loadStudents(searchInput.value.trim());
+});
+
+const initialSkill = new URLSearchParams(location.search).get("skill") || "";
+searchInput.value = initialSkill;
+loadStudents(initialSkill);
+</script>
+</body>
+</html>

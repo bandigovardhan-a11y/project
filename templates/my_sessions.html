@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Sessions | SkillSwap</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#f4f6fb;color:#222}
+header{background:#4f46e5;color:white;padding:22px;text-align:center}
+.container{max-width:950px;margin:25px auto;padding:15px}
+.form-box,.session-card{background:white;padding:22px;margin-bottom:20px;border-radius:12px;box-shadow:0 3px 12px #00000012}
+input,select,textarea{width:100%;padding:12px;margin:8px 0 15px;border:1px solid #ccc;border-radius:7px}
+button{background:#4f46e5;color:white;border:0;padding:11px 17px;margin:5px 5px 5px 0;border-radius:7px;cursor:pointer}
+button:hover{opacity:.85}
+button:disabled{opacity:.5;cursor:wait}
+.reject,.cancel{background:#dc3545}
+.accept{background:#198754}
+.status{font-weight:bold;color:#4f46e5}
+.message{margin:12px 0;color:#333;min-height:20px}
+.back{color:#4f46e5;text-decoration:none}
+.session-card p{margin:8px 0}
+</style>
+</head>
+<body>
+<header>
+    <h1>📅 My Sessions</h1>
+    <p>Manage your SkillSwap learning sessions</p>
+</header>
+
+<div class="container">
+    <div class="form-box">
+        <h2>Schedule a New Session</h2>
+
+        <form id="sessionForm">
+            <label for="email">Partner's Registered Email</label>
+            <input type="email" id="email" placeholder="Enter student's email" required>
+
+            <label for="skill">Skill to Exchange</label>
+            <input type="text" id="skill" placeholder="Example: Python, HTML, Java" required>
+
+            <label for="sessionDate">Session Date and Time</label>
+            <input type="datetime-local" id="sessionDate" required>
+
+            <label for="mode">Meeting Mode</label>
+            <select id="mode">
+                <option value="Online">Online</option>
+                <option value="Offline">Offline</option>
+            </select>
+
+            <label for="notes">Additional Notes</label>
+            <textarea id="notes" rows="3" placeholder="Enter session details"></textarea>
+
+            <button type="submit" id="submitSession">Send Session Request</button>
+        </form>
+
+        <div id="message" class="message" role="status"></div>
+    </div>
+
+    <h2>My Session Requests</h2>
+    <div id="sessions">Loading sessions...</div>
+    <a class="back" href="/dashboard">← Back to Dashboard</a>
+</div>
+
+<script>
+const form = document.getElementById("sessionForm");
+const messageBox = document.getElementById("message");
+const sessionContainer = document.getElementById("sessions");
+
+async function api(url,options={}){
+    const response = await fetch(url,options);
+    const data = await response.json();
+
+    if(response.status===401){
+        location.href="/login";
+        throw new Error("Please login.");
+    }
+    if(!response.ok) throw new Error(data.message || "Request failed.");
+    return data;
+}
+
+async function loadSessions(){
+    sessionContainer.textContent = "Loading sessions...";
+
+    try{
+        const data = await api("/api/sessions");
+        sessionContainer.innerHTML = "";
+
+        if(!Array.isArray(data) || data.length===0){
+            sessionContainer.textContent = "No sessions found yet.";
+            return;
+        }
+
+        data.forEach(session=>{
+            const card = document.createElement("div");
+            card.className = "session-card";
+            card.dataset.id = session.id;
+
+            const title = document.createElement("h3");
+            title.textContent = "📘 " + session.skill;
+
+            const partner = document.createElement("p");
+            partner.textContent = "Student: " + (session.other_student || "Student");
+
+            const email = document.createElement("p");
+            email.textContent = "Email: " + (session.other_email || "");
+
+            const date = document.createElement("p");
+            date.textContent = "Date: " + session.session_date;
+
+            const mode = document.createElement("p");
+            mode.textContent = "Mode: " + session.meeting_mode;
+
+            const notes = document.createElement("p");
+            notes.textContent = "Notes: " + (session.notes || "None");
+
+            const status = document.createElement("p");
+            status.className = "status";
+            status.textContent = "Status: " + session.status;
+
+            card.append(title,partner,email,date,mode,notes,status);
+
+            const isRequester = Number(session.requester_id) === Number(session.current_user_id);
+
+            if(session.status==="Pending"){
+                if(!isRequester){
+                    addAction(card,"Accept","Accepted","accept");
+                    addAction(card,"Reject","Rejected","reject");
+                }else{
+                    addAction(card,"Cancel","Cancelled","cancel");
+                }
+            }
+
+            sessionContainer.appendChild(card);
+        });
+    }catch(error){
+        sessionContainer.textContent = error.message;
+    }
+}
+
+function addAction(card,label,newStatus,className){
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.className = className;
+
+    button.addEventListener("click",async()=>{
+        if(!confirm(label+" this session?")) return;
+        button.disabled = true;
+
+        try{
+            await api("/api/sessions",{
+                method:"PATCH",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({
+                    session_id:Number(card.dataset.id),
+                    status:newStatus
+                })
+            });
+            await loadSessions();
+        }catch(error){
+            alert(error.message);
+            button.disabled = false;
+        }
+    });
+
+    card.appendChild(button);
+}
+
+form.addEventListener("submit",async event=>{
+    event.preventDefault();
+
+    const dateValue = document.getElementById("sessionDate").value;
+    if(!dateValue || new Date(dateValue)<=new Date()){
+        messageBox.textContent = "Please select a future date and time.";
+        return;
+    }
+
+    const payload = {
+        email:document.getElementById("email").value.trim(),
+        skill:document.getElementById("skill").value.trim(),
+        session_date:dateValue,
+        meeting_mode:document.getElementById("mode").value,
+        notes:document.getElementById("notes").value.trim()
+    };
+
+    const button = document.getElementById("submitSession");
+    button.disabled = true;
+
+    try{
+        const result = await api("/api/sessions",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(payload)
+        });
+
+        messageBox.style.color = "green";
+        messageBox.textContent = result.message || "Session request sent.";
+        form.reset();
+        await loadSessions();
+    }catch(error){
+        messageBox.style.color = "red";
+        messageBox.textContent = error.message;
+    }finally{
+        button.disabled = false;
+    }
+});
+
+const params = new URLSearchParams(location.search);
+if(params.get("email")) document.getElementById("email").value=params.get("email");
+
+loadSessions();
+</script>
+</body>
+</html>
